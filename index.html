@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekamra Kshetra Heritage Tour</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Arial, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar Styles */
+        #sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            flex-shrink: 0;
+        }
+        .sidebar-header h2 { margin: 0; font-size: 1.2rem; }
+        .sidebar-header p { margin: 5px 0 0; font-size: 0.85rem; opacity: 0.8; }
+
+        .temple-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .temple-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .temple-item:hover { background: #e2e6ea; }
+        .temple-info { display: flex; flex-direction: column; }
+        .temple-name { font-weight: 600; color: #333; font-size: 0.95rem; }
+        .temple-meta { font-size: 0.75rem; color: #666; margin-top: 2px; }
+
+        .fly-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .fly-btn:hover { background: #0056b3; }
+
+        /* Map Area */
+        #map { flex-grow: 1; height: 100%; z-index: 1; }
+
+        /* Photo Preview */
+        #photo-preview {
+            position: absolute; bottom: 20px; right: 20px; z-index: 2000;
+            background: white; padding: 10px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 250px; display: none; pointer-events: none;
+        }
+        #preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; background: #eee; }
+        #preview-title { margin: 8px 0 0; font-size: 14px; text-align: center; color: #333; }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body { flex-direction: column-reverse; }
+            #sidebar { width: 100%; height: 40%; }
+            #map { height: 60%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h2>⭐ Ekamra Kshetra</h2>
+            <p>Old Town Temple Trail</p>
+        </div>
+        <ul class="temple-list" id="temple-list-ul">
+            </ul>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="photo-preview">
+        <img id="preview-img" src="" alt="Preview">
+        <h4 id="preview-title">Temple Name</h4>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // --- DATA: Exact Ordered List ---
+        // Coordinates approximated for "Hidden" temples based on Ekamra Kshetra maps
+        const tourData = [
+            { 
+                id: 1, name: "Rameswara Temple", lat: 20.2468, lng: 85.8304, 
+                desc: "Start Here (Mausi Maa)", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Rameswar_Temple_Bhubaneswar.jpg/640px-Rameswar_Temple_Bhubaneswar.jpg",
+                isStart: true
+            },
+            { 
+                id: 2, name: "Satrughna Temple", lat: 20.2470, lng: 85.8306, 
+                desc: "Lakshmaneswar Group", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Satrughaneswar_Temple_01.jpg/640px-Satrughaneswar_Temple_01.jpg" 
+            },
+            { 
+                id: 3, name: "Bharateswara Temple", lat: 20.2471, lng: 85.8307, 
+                desc: "Lakshmaneswar Group", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Bharatesvara_Siva_Temple_01.jpg/640px-Bharatesvara_Siva_Temple_01.jpg" 
+            },
+            { 
+                id: 4, name: "Vaital Temple", lat: 20.2393, lng: 85.8331, 
+                desc: "Tantric (Chamunda)", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Vaital_Deul_Bhubaneswar_06.jpg/640px-Vaital_Deul_Bhubaneswar_06.jpg" 
+            },
+            { 
+                id: 5, name: "Bindusagar Shrines", lat: 20.2400, lng: 85.8350, 
+                desc: "Sacred Lake Area", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Bindusagar_Tank_Bhubaneswar.jpg/640px-Bindusagar_Tank_Bhubaneswar.jpg" 
+            },
+            { 
+                id: 6, name: "Ananta Basudev Temple", lat: 20.2406, lng: 85.8358, 
+                desc: "Vishnu Temple & Kitchen", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Ananta_Vasudeva_Temple.jpg/640px-Ananta_Vasudeva_Temple.jpg" 
+            },
+            { 
+                id: 7, name: "Lingaraj Temple", lat: 20.2384, lng: 85.8338, 
+                desc: "Main Icon of the City", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Lingaraj_Temple_Bhubaneswar.jpg/640px-Lingaraj_Temple_Bhubaneswar.jpg" 
+            },
+            { 
+                id: 8, name: "Taleswar Temple", lat: 20.2440, lng: 85.8390, 
+                desc: "Near Parasurameswar", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Talesvara_Siva_Temple_02.jpg/640px-Talesvara_Siva_Temple_02.jpg" 
+            },
+            { 
+                id: 9, name: "Parsurameswara Temple", lat: 20.2431, lng: 85.8391, 
+                desc: "Oldest (7th Century)", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Parasurameswara_Temple_Bhubaneswar_13.jpg/640px-Parasurameswara_Temple_Bhubaneswar_13.jpg" 
+            },
+            { 
+                id: 10, name: "Swarnajaleswara Temple", lat: 20.2433, lng: 85.8388, 
+                desc: "Kotitirtha Lane", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Swarnajalesvara_Temple_01.jpg/640px-Swarnajalesvara_Temple_01.jpg" 
+            },
+            { 
+                id: 11, name: "Mukteswara Temple", lat: 20.2427, lng: 85.8404, 
+                desc: "Gem of Architecture", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Muktesvara_deula_Bhubaneswar_03.jpg/640px-Muktesvara_deula_Bhubaneswar_03.jpg" 
+            },
+            { 
+                id: 12, name: "Rajarani Temple", lat: 20.2435, lng: 85.8435, 
+                desc: "Love Temple", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Rajarani_Temple_Bhubaneshwar.jpg/640px-Rajarani_Temple_Bhubaneshwar.jpg" 
+            },
+            { 
+                id: 13, name: "Megheswara Temple", lat: 20.2445, lng: 85.8560, 
+                desc: "Tankapani Road", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Megheswara_Temple_02.jpg/640px-Megheswara_Temple_02.jpg" 
+            },
+            { 
+                id: 14, name: "Brahmeswara Temple", lat: 20.2433, lng: 85.8524, 
+                desc: "Panchatanaya Style", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Brahmeswara_Temple_Bhubaneshwar.jpg/640px-Brahmeswara_Temple_Bhubaneshwar.jpg" 
+            },
+            { 
+                id: 15, name: "Kapileswar Temple", lat: 20.2280, lng: 85.8280, 
+                desc: "End Here (South)", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Kapilesvara_Siva_Temple_03.jpg/640px-Kapilesvara_Siva_Temple_03.jpg",
+                isEnd: true
+            }
+        ];
+
+        // --- MAP INITIALIZATION ---
+        const map = L.map('map').setView([20.242, 85.840], 14);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // --- ICONS ---
+        const createIcon = (color) => {
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30" fill="${color}" stroke="white" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 12 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -32]
+            });
+        }
+
+        const defaultIcon = createIcon('#e74c3c'); // Red
+        const startIcon = createIcon('#27ae60');   // Green
+        const endIcon = createIcon('#8e44ad');     // Purple
+
+        // --- DOM ELEMENTS ---
+        const listUl = document.getElementById('temple-list-ul');
+        const previewBox = document.getElementById('photo-preview');
+        const previewImg = document.getElementById('preview-img');
+        const previewTitle = document.getElementById('preview-title');
+        
+        const pathCoords = [];
+        const markers = {};
+
+        // --- RENDER LOOP ---
+        tourData.forEach((temple, index) => {
+            // 1. Determine Icon
+            let icon = defaultIcon;
+            if (temple.isStart) icon = startIcon;
+            if (temple.isEnd) icon = endIcon;
+
+            // 2. Add Marker
+            const marker = L.marker([temple.lat, temple.lng], { icon: icon }).addTo(map);
+            markers[temple.id] = marker;
+            pathCoords.push([temple.lat, temple.lng]);
+
+            // 3. Hover Events
+            marker.on('mouseover', () => {
+                previewImg.src = temple.img;
+                previewTitle.innerText = temple.name;
+                previewBox.style.display = 'block';
+            });
+            marker.on('mouseout', () => {
+                previewBox.style.display = 'none';
+            });
+
+            // 4. Click Event (Directions)
+            marker.bindPopup(`
+                <div style="text-align:center">
+                    <strong>${temple.name}</strong><br>
+                    <span style="font-size:12px;color:#666">${temple.desc}</span><br>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${temple.lat},${temple.lng}" target="_blank" style="display:inline-block;margin-top:5px;text-decoration:none;color:#007bff;font-size:12px;font-weight:bold;">➡ Get Directions</a>
+                </div>
+            `);
+
+            // 5. Populate Sidebar
+            const li = document.createElement('li');
+            li.className = 'temple-item';
+            li.innerHTML = `
+                <div class="temple-info">
+                    <span class="temple-name">${index + 1}. ${temple.name}</span>
+                    <span class="temple-meta">${temple.desc}</span>
+                </div>
+                <button class="fly-btn" onclick="focusTemple(${temple.id})" title="Locate">📍</button>
+            `;
+            listUl.appendChild(li);
+        });
+
+        // --- DRAW PATH ---
+        L.polyline(pathCoords, {
+            color: '#3498db',
+            weight: 3,
+            dashArray: '5, 10',
+            opacity: 0.7
+        }).addTo(map);
+
+        // --- FUNCTIONS ---
+        window.focusTemple = function(id) {
+            const marker = markers[id];
+            if (marker) {
+                map.flyTo(marker.getLatLng(), 16, { duration: 1.5 });
+                marker.openPopup();
+            }
+        };
+
+        // Fit bounds
+        const group = new L.featureGroup(Object.values(markers));
+        map.fitBounds(group.getBounds(), { padding: [50, 50] });
+
+    </script>
+</body>
+</html>
